@@ -1,4 +1,5 @@
 import express from 'express';
+import { pgPool } from './pg_connection.js';
 
 const app = express();
 
@@ -8,42 +9,57 @@ app.listen(3001, () => {
     console.log("server running on port 3001");
 });
 
-app.post('/movie_user', (req, res) =>{
+app.post('/movie_user', async (req, res) =>{
 
-    let movie_user = req.body;
-    console.log(movie_user);
-    res.send();
-
-});
-
-app.post('/genre', (req, res) =>{
-
-    let genre = req.body;
-    console.log(genre);
-    res.send();
+    try{
+        const result = await pgPool.query("SELECT * FROM movie_user");
+        console.log(result.rows);
+    }catch(e){
+        console.log(e.message);
+    }
 
 });
 
-app.post('/movie', (req, res) =>{
+app.post('/genre', async (req, res) =>{
 
-    let movie = req.body;
-    console.log(movie);
-    res.send();
+    try{
+        const result = await pgPool.query("SELECT * FROM genre");
+        console.log(result);
+    }catch(e){
+        console.log(e.message);
+    }
 
 });
 
-app.post('/review', (req, res) =>{
+app.post('/movie', async (req, res) =>{
+
+    try{
+        const result = await pgPool.query("SELECT * FROM movie");
+        console.log(result.rows);
+    }catch(e){
+        console.log(e.message);
+    }
+
+});
+
+app.post('/review', async (req, res) =>{
     
-    let review = req.body;
-    console.log(review);
-    res.send();
+    try{
+        const result = await pgPool.query("SELECT * FROM review");
+        console.log(result.rows);
+    }catch(e){
+        console.log(e.message);
+    }
 
 });
 
-app.post('/favorite', (req, res) =>{
-    
-    let favorite = req.body;
-    console.log(favorite);
-    res.send();
+app.post('/favorite', async (req, res) =>{
+
+    try{
+        const result = await pgPool.query("SELECT * FROM favorite");
+        console.log(result.rows);
+    }catch(e){
+        console.log(e.message);
+    }
 
 });
