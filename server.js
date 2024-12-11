@@ -96,20 +96,6 @@ try{
 }
 });
 
-//get 10 movies per page
-app.get('/movie', async (req, res) =>{
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page -1) * limit;
-    try{
-        const result = await pgPool.query("SELECT * FROM movie LIMIT $1 OFFSET $2", [limit, offset]);
-        res.status(200).json({message: "Movie fetch success", data: result.rows});
-    }catch(e){
-        console.log(e.message);
-        res.status(500).json({message: "movie fetch no succes", error: e.message});
-    }
-});
-
 //add movie review with username stars review text and mmovie id, there is only user_id in the reviews table but reviews can be added with username but only id shows in reviews table
 app.post('/review', async (req, res) =>{
         const {username, stars, review_text, movie_id} = req.body;
@@ -117,15 +103,12 @@ app.post('/review', async (req, res) =>{
             return res.status(400).json({ message: "All fields are required"});
         }
         try{
-            const userResult = await pgPool.query(
-                "SELECT user_id FROM movie_user WHERE username = $1", [username]
+            const result = await pgPool.query(
+                "INSERT INTO review (user_id, movie_id, stars, review_text) " +
+                "SELECT user_id, $2, $3, $4 FROM movie_user WHERE username = $1 RETURNING *",
+                [username, movie_id, stars, review_text]
             );
-            const user_id = userResult.rows[0].user_id;
-
-            const result = await pgPool.query("INSERT INTO review (user_id, movie_id, stars, review_text) VALUES ($1, $2, $3, $4) RETURNING *",
-            [user_id, movie_id, stars, review_text]
-            );
-            res.status(201).json({message: "Add review success", data: result.rows});
+            res.status(201).json({message: "Add review success", data: result.rows[0]});
         }catch(e){
             console.log(e.message);
             res.status(500).json({message: "Error adding review", error: e.message});
@@ -141,19 +124,15 @@ app.post('/favorite', async (req, res) =>{
         return res.status(400).json({message: "Username and movie ID are required"});
     }
     try{
-        const userResult = await pgPool.query(
-            "SELECT user_id FROM movie_user WHERE username = $1", [username]
-        );
-        const user_id = userResult.rows[0].user_id;
-
-        const result = await pgPool.query( "INSERT INTO favorite (user_id, movie_id) VALUES ($1, $2) RETURNING *",
-            [user_id, movie_id]);
+        const result = await pgPool.query( 
+            "INSERT INTO favorite (user_id, movie_id) " +
+            "SELECT user_id, $2 FROM movie_user WHERE username = $1 RETURNING *",
+            [username, movie_id]);
         res.status(201).json({message:"Movie added to favs", favorite: result.rows});
     }catch(e){
         console.log(e.message);
         res.status(500).json({message: "Error adding movie", error: e.message});
     }
-
 });
 
 //get favorite movie by username
@@ -173,5 +152,35 @@ app.get('/favorite/:username', async (req, res) =>{
     }catch(e){
         console.log(e.message);
         res.status(500).json({message: "Favorite movie fetch no succes", error: e.message});
+    }
+});
+
+
+// fetch movie with keyword and feature getting 10 per page 
+app.get('/movie', async (req, res) => {
+    //pagination made here because searching with keyword didnt work if pagination was own endpoint
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    let keyword = req.query.keyword ? `%${req.query.keyword.toLowerCase()}%` : null;
+
+    try {
+        let result;
+        //if no keyword, fetch all movies
+        if (!keyword) {
+            result = await pgPool.query("SELECT movie_name FROM movie LIMIT $1 OFFSET $2", [limit, offset]);
+        } else {
+            //if yes keyword then search with it
+            keyword = '%' + keyword.toLowerCase() + '%';
+            result = await pgPool.query(
+                "SELECT movie_name FROM movie WHERE LOWER(movie_name) LIKE $1 LIMIT $2 OFFSET $3",
+                [keyword, limit, offset]
+            );
+        }
+        res.status(200).json({message: "Movie fetch success", data: result.rows});
+    } catch (e) {
+        console.log("error:", e.message);
+        res.status(500).json({ message: "Failed fetch movie", error: e.message });
     }
 });
